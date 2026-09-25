@@ -201,7 +201,7 @@ def probar_mas_vendidos():
     # MLB = Brasil / categoría de ejemplo.
     # Más adelante utilizaremos las categorías de México (MLM)
     # automáticamente.
-    category_id = "MLM1055"
+    category_id = "MLM1000"
 
     url = (
         f"https://api.mercadolibre.com/highlights/"
