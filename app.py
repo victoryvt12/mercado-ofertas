@@ -1,3 +1,4 @@
+```python
 import os
 import secrets
 import hashlib
@@ -18,10 +19,151 @@ REDIRECT_URI = "https://mercado-ofertas.onrender.com/oauth/mercadolibre/callback
 
 @app.route("/")
 def home():
-    return """
-    <h1>Mercado Ofertas</h1>
-    <p>Servidor funcionando correctamente.</p>
-    <p><a href="/login/mercadolibre">Conectar con Mercado Libre</a></p>
+
+    access_token = session.get("access_token")
+    ml_user_id = session.get("ml_user_id")
+
+    connected = False
+    nickname = None
+
+    if access_token:
+
+        try:
+            me_response = requests.get(
+                "https://api.mercadolibre.com/users/me",
+                headers={
+                    "Authorization": f"Bearer {access_token}"
+                },
+                timeout=10
+            )
+
+            if me_response.status_code == 200:
+                connected = True
+                user_data = me_response.json()
+                nickname = user_data.get("nickname")
+
+        except requests.RequestException:
+            connected = False
+
+    if connected:
+
+        connection_status = """
+        <div style="
+            background:#e8f7ed;
+            border:1px solid #8bd5a5;
+            padding:20px;
+            border-radius:12px;
+            margin-top:20px;
+        ">
+            <h2 style="color:#187a3d;">🟢 Mercado Libre conectado</h2>
+            <p>La conexión con tu cuenta de Mercado Libre está funcionando correctamente.</p>
+        """
+
+        if nickname:
+            connection_status += f"""
+            <p><strong>Cuenta:</strong> {nickname}</p>
+            """
+
+        connection_status += """
+        </div>
+        """
+
+        action_button = """
+        <p style="margin-top:20px;">
+            <a href="/login/mercadolibre"
+               style="
+                    display:inline-block;
+                    padding:12px 20px;
+                    background:#3483fa;
+                    color:white;
+                    text-decoration:none;
+                    border-radius:8px;
+               ">
+                Reconectar Mercado Libre
+            </a>
+        </p>
+        """
+
+    else:
+
+        connection_status = """
+        <div style="
+            background:#fff0f0;
+            border:1px solid #e0a0a0;
+            padding:20px;
+            border-radius:12px;
+            margin-top:20px;
+        ">
+            <h2 style="color:#b42318;">🔴 Mercado Libre necesita reconexión</h2>
+            <p>
+                La aplicación no tiene una conexión activa con Mercado Libre.
+            </p>
+            <p>
+                Pulsa el botón para volver a autorizar la conexión.
+            </p>
+        </div>
+        """
+
+        action_button = """
+        <p style="margin-top:20px;">
+            <a href="/login/mercadolibre"
+               style="
+                    display:inline-block;
+                    padding:12px 20px;
+                    background:#3483fa;
+                    color:white;
+                    text-decoration:none;
+                    border-radius:8px;
+               ">
+                Conectar Mercado Libre
+            </a>
+        </p>
+        """
+
+    return f"""
+    <!DOCTYPE html>
+
+    <html lang="es">
+
+    <head>
+
+        <meta charset="UTF-8">
+
+        <meta name="viewport"
+              content="width=device-width, initial-scale=1.0">
+
+        <title>Mercado Ofertas</title>
+
+    </head>
+
+    <body style="
+        font-family:Arial, sans-serif;
+        max-width:700px;
+        margin:60px auto;
+        padding:20px;
+        color:#333;
+    ">
+
+        <h1>🛍️ Mercado Ofertas</h1>
+
+        <p>
+            Panel de control de la automatización de ofertas.
+        </p>
+
+        {connection_status}
+
+        {action_button}
+
+        <hr style="margin-top:40px;">
+
+        <p style="color:#777;">
+            Próximamente aquí aparecerán las ofertas detectadas,
+            enlaces de afiliado y publicaciones.
+        </p>
+
+    </body>
+
+    </html>
     """
 
 
@@ -70,6 +212,9 @@ def mercadolibre_callback():
         return f"""
         <h2>Error de autorización</h2>
         <p>{error}</p>
+        <p>
+            <a href="/">Volver a Mercado Ofertas</a>
+        </p>
         """, 400
 
     code = request.args.get("code")
@@ -86,7 +231,6 @@ def mercadolibre_callback():
     if not code_verifier:
         return "No se encontró el code_verifier de PKCE.", 400
 
-    # Intercambiar el código por Access Token y Refresh Token
     token_response = requests.post(
         "https://api.mercadolibre.com/oauth/token",
         headers={
@@ -105,10 +249,21 @@ def mercadolibre_callback():
     )
 
     if token_response.status_code != 200:
+
         return f"""
-        <h2>Error al obtener el token</h2>
-        <p>Código HTTP: {token_response.status_code}</p>
-        <p>Mercado Libre rechazó el intercambio.</p>
+        <h2>❌ Error al obtener el token</h2>
+
+        <p>
+            Mercado Libre rechazó el intercambio de autorización.
+        </p>
+
+        <p>
+            Código HTTP: {token_response.status_code}
+        </p>
+
+        <p>
+            <a href="/">Volver a Mercado Ofertas</a>
+        </p>
         """, 400
 
     token_data = token_response.json()
@@ -118,17 +273,17 @@ def mercadolibre_callback():
     user_id = token_data.get("user_id")
 
     if not access_token:
-        return "Mercado Libre no devolvió un Access Token.", 400
 
-    # Guardamos temporalmente el token en la sesión.
-    # No mostramos el token en pantalla.
+        return """
+        <h2>❌ Mercado Libre no devolvió un Access Token.</h2>
+        <p>
+            <a href="/">Volver a Mercado Ofertas</a>
+        </p>
+        """, 400
+
     session["access_token"] = access_token
     session["refresh_token"] = refresh_token
     session["ml_user_id"] = user_id
-
-    # ==========================================================
-    # PRUEBA REAL DEL ACCESS TOKEN
-    # ==========================================================
 
     me_response = requests.get(
         "https://api.mercadolibre.com/users/me",
@@ -139,38 +294,90 @@ def mercadolibre_callback():
     )
 
     if me_response.status_code != 200:
-        return f"""
-        <h2>Token obtenido, pero falló la prueba de API</h2>
-        <p>Código HTTP: {me_response.status_code}</p>
+
+        return """
+        <h2>⚠️ Token obtenido, pero falló la prueba de API.</h2>
+        <p>
+            <a href="/">Volver a Mercado Ofertas</a>
+        </p>
         """, 400
 
     user_data = me_response.json()
 
-    nickname = user_data.get("nickname", "No disponible")
-    site_id = user_data.get("site_id", "No disponible")
+    nickname = user_data.get(
+        "nickname",
+        "No disponible"
+    )
+
+    site_id = user_data.get(
+        "site_id",
+        "No disponible"
+    )
 
     return f"""
-    <h2>¡Mercado Libre conectado correctamente! 🎉</h2>
+    <!DOCTYPE html>
 
-    <p><strong>Access Token:</strong> obtenido correctamente.</p>
+    <html lang="es">
 
-    <p><strong>User ID:</strong> {user_id}</p>
+    <head>
+        <meta charset="UTF-8">
+        <title>Mercado Ofertas</title>
+    </head>
 
-    <p><strong>Cuenta:</strong> {nickname}</p>
+    <body style="
+        font-family:Arial, sans-serif;
+        max-width:700px;
+        margin:60px auto;
+        padding:20px;
+    ">
 
-    <p><strong>Site:</strong> {site_id}</p>
+        <div style="
+            background:#e8f7ed;
+            border:1px solid #8bd5a5;
+            padding:25px;
+            border-radius:12px;
+        ">
 
-    <hr>
+            <h2 style="color:#187a3d;">
+                🟢 ¡Mercado Libre conectado correctamente!
+            </h2>
 
-    <p>
-    La API de Mercado Libre respondió correctamente.
-    </p>
+            <p>
+                La API de Mercado Libre respondió correctamente.
+            </p>
 
-    <p>
-    <strong>¡Nuestra conexión OAuth funciona!</strong>
-    </p>
+            <p>
+                <strong>Cuenta:</strong> {nickname}
+            </p>
+
+            <p>
+                <strong>User ID:</strong> {user_id}
+            </p>
+
+            <p>
+                <strong>Site:</strong> {site_id}
+            </p>
+
+            <p>
+                <strong>Access Token:</strong>
+                obtenido correctamente.
+            </p>
+
+        </div>
+
+        <p style="margin-top:25px;">
+            <a href="/">← Volver al panel</a>
+        </p>
+
+    </body>
+
+    </html>
     """
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000)
+    app.run(
+        host="0.0.0.0",
+        port=10000
+    )
+```
