@@ -86,7 +86,7 @@ def mercadolibre_callback():
     if not code_verifier:
         return "No se encontró el code_verifier de PKCE.", 400
 
-    # Intercambio del código por tokens
+    # Intercambiar el código por Access Token y Refresh Token
     token_response = requests.post(
         "https://api.mercadolibre.com/oauth/token",
         headers={
@@ -106,7 +106,7 @@ def mercadolibre_callback():
 
     if token_response.status_code != 200:
         return f"""
-        <h2>Error al obtener el Access Token</h2>
+        <h2>Error al obtener el token</h2>
         <p>Código HTTP: {token_response.status_code}</p>
         <p>Mercado Libre rechazó el intercambio.</p>
         """, 400
@@ -120,22 +120,54 @@ def mercadolibre_callback():
     if not access_token:
         return "Mercado Libre no devolvió un Access Token.", 400
 
-    # Guardamos temporalmente los tokens en la sesión.
-    # NO los mostramos en pantalla ni en los logs.
+    # Guardamos temporalmente el token en la sesión.
+    # No mostramos el token en pantalla.
     session["access_token"] = access_token
     session["refresh_token"] = refresh_token
     session["ml_user_id"] = user_id
 
+    # ==========================================================
+    # PRUEBA REAL DEL ACCESS TOKEN
+    # ==========================================================
+
+    me_response = requests.get(
+        "https://api.mercadolibre.com/users/me",
+        headers={
+            "Authorization": f"Bearer {access_token}"
+        },
+        timeout=30
+    )
+
+    if me_response.status_code != 200:
+        return f"""
+        <h2>Token obtenido, pero falló la prueba de API</h2>
+        <p>Código HTTP: {me_response.status_code}</p>
+        """, 400
+
+    user_data = me_response.json()
+
+    nickname = user_data.get("nickname", "No disponible")
+    site_id = user_data.get("site_id", "No disponible")
+
     return f"""
     <h2>¡Mercado Libre conectado correctamente! 🎉</h2>
 
-    <p>Access Token obtenido correctamente.</p>
+    <p><strong>Access Token:</strong> obtenido correctamente.</p>
 
     <p><strong>User ID:</strong> {user_id}</p>
 
+    <p><strong>Cuenta:</strong> {nickname}</p>
+
+    <p><strong>Site:</strong> {site_id}</p>
+
+    <hr>
+
     <p>
-    La siguiente etapa será guardar de forma segura el token
-    y utilizarlo para consultar la API de Mercado Libre.
+    La API de Mercado Libre respondió correctamente.
+    </p>
+
+    <p>
+    <strong>¡Nuestra conexión OAuth funciona!</strong>
     </p>
     """
 
