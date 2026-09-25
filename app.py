@@ -81,6 +81,20 @@ def home():
                 Reconectar Mercado Libre
             </a>
         </p>
+
+        <p style="margin-top:15px;">
+            <a href="/probar-mas-vendidos"
+               style="
+                    display:inline-block;
+                    padding:12px 20px;
+                    background:#39a900;
+                    color:white;
+                    text-decoration:none;
+                    border-radius:8px;
+               ">
+                🛒 Probar Más vendidos
+            </a>
+        </p>
         """
 
     else:
@@ -169,6 +183,135 @@ def home():
 @app.route("/health")
 def health():
     return "OK"
+
+
+@app.route("/probar-mas-vendidos")
+def probar_mas_vendidos():
+
+    access_token = session.get("access_token")
+
+    if not access_token:
+        return """
+        <h2>🔴 Mercado Libre no está conectado</h2>
+        <p>Primero debes conectar tu cuenta.</p>
+        <p><a href="/">← Volver al panel</a></p>
+        """, 401
+
+    # Categoría de prueba:
+    # MLB = Brasil / categoría de ejemplo.
+    # Más adelante utilizaremos las categorías de México (MLM)
+    # automáticamente.
+    category_id = "MLM1055"
+
+    url = (
+        f"https://api.mercadolibre.com/highlights/"
+        f"MLM/category/{category_id}"
+    )
+
+    try:
+
+        response = requests.get(
+            url,
+            headers={
+                "Authorization": f"Bearer {access_token}"
+            },
+            timeout=30
+        )
+
+    except requests.RequestException as error:
+
+        return f"""
+        <h2>❌ Error de conexión</h2>
+        <p>{error}</p>
+        <p><a href="/">← Volver al panel</a></p>
+        """, 500
+
+    if response.status_code != 200:
+
+        return f"""
+        <h2>❌ Mercado Libre rechazó la consulta</h2>
+
+        <p>
+            <strong>Código HTTP:</strong>
+            {response.status_code}
+        </p>
+
+        <p>
+            <strong>Respuesta:</strong>
+        </p>
+
+        <pre>{response.text}</pre>
+
+        <p>
+            <a href="/">← Volver al panel</a>
+        </p>
+        """, 400
+
+    data = response.json()
+
+    products = data.get("content", [])
+
+    html_products = ""
+
+    for product in products:
+
+        product_id = product.get("id", "Sin ID")
+        position = product.get("position", "Sin posición")
+        product_type = product.get("type", "Sin tipo")
+
+        html_products += f"""
+        <li style="margin-bottom:15px;">
+            <strong>#{position}</strong>
+            — ID: {product_id}
+            — Tipo: {product_type}
+        </li>
+        """
+
+    return f"""
+    <!DOCTYPE html>
+
+    <html lang="es">
+
+    <head>
+        <meta charset="UTF-8">
+        <title>Más vendidos</title>
+    </head>
+
+    <body style="
+        font-family:Arial, sans-serif;
+        max-width:800px;
+        margin:50px auto;
+        padding:20px;
+    ">
+
+        <h1>🛒 Más vendidos</h1>
+
+        <p>
+            Mercado Libre respondió correctamente.
+        </p>
+
+        <p>
+            <strong>Categoría consultada:</strong> {category_id}
+        </p>
+
+        <p>
+            <strong>Productos recibidos:</strong> {len(products)}
+        </p>
+
+        <hr>
+
+        <ol>
+            {html_products}
+        </ol>
+
+        <p style="margin-top:30px;">
+            <a href="/">← Volver al panel</a>
+        </p>
+
+    </body>
+
+    </html>
+    """
 
 
 @app.route("/login/mercadolibre")
