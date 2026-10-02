@@ -309,6 +309,51 @@ def probar_mas_vendidos():
     </html>
     """
 
+@app.route("/probar-link-afiliado")
+def probar_link_afiliado():
+
+    access_token = session.get("access_token")
+
+    if not access_token:
+        return """
+        <h2>🔴 Mercado Libre no está conectado</h2>
+        <p><a href="/login/mercadolibre">Conectar Mercado Libre</a></p>
+        """, 401
+
+    item_id = "MLM25673801"
+
+    response = requests.get(
+        f"https://api.mercadolibre.com/items/{item_id}",
+        headers={
+            "Authorization": f"Bearer {access_token}"
+        },
+        timeout=30
+    )
+
+    if response.status_code != 200:
+        return f"""
+        <h2>❌ Error</h2>
+        <pre>{response.text}</pre>
+        """, response.status_code
+
+    data = response.json()
+
+    return f"""
+    <h1>🛒 Producto encontrado</h1>
+
+    <p><strong>ID:</strong> {data.get("id")}</p>
+
+    <p><strong>Título:</strong> {data.get("title")}</p>
+
+    <p><strong>Precio:</strong> ${data.get("price")}</p>
+
+    <p>
+        <strong>URL:</strong><br>
+        https://www.mercadolibre.com.mx/p/{item_id}
+    </p>
+
+    <p><a href="/">← Volver</a></p>
+    """
 
 @app.route("/login/mercadolibre")
 def login_mercadolibre():
