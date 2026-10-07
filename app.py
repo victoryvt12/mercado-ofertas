@@ -13,8 +13,51 @@ app.secret_key = os.environ.get("FLASK_SECRET_KEY")
 ML_CLIENT_ID = os.environ.get("ML_CLIENT_ID")
 ML_CLIENT_SECRET = os.environ.get("ML_CLIENT_SECRET")
 
+ML_AFFILIATE_COOKIE = os.environ.get("ML_AFFILIATE_COOKIE")
+ML_AFFILIATE_CSRF = os.environ.get("ML_AFFILIATE_CSRF")
+ML_AFFILIATE_TAG = os.environ.get("ML_AFFILIATE_TAG", "divi70685")
+
 REDIRECT_URI = "https://mercado-ofertas.onrender.com/oauth/mercadolibre/callback"
 
+def create_affiliate_link(product_url):
+
+    if not ML_AFFILIATE_COOKIE or not ML_AFFILIATE_CSRF:
+        raise RuntimeError(
+            "Faltan las credenciales del generador de afiliados."
+        )
+
+    response = requests.post(
+        "https://www.mercadolibre.com.mx/affiliate-program/api/v2/affiliates/createLink",
+        headers={
+            "Accept": "application/json, text/plain, */*",
+            "Content-Type": "application/json",
+            "Origin": "https://www.mercadolibre.com.mx",
+            "Referer": "https://www.mercadolibre.com.mx/afiliados/linkbuilder",
+            "User-Agent": "Mozilla/5.0",
+            "x-csrf-token": ML_AFFILIATE_CSRF,
+            "Cookie": ML_AFFILIATE_COOKIE
+        },
+        json={
+            "urls": [product_url],
+            "tag": ML_AFFILIATE_TAG
+        },
+        timeout=30
+    )
+
+    if response.status_code != 200:
+        raise RuntimeError(
+            f"Mercado Libre respondió con HTTP {response.status_code}: "
+            f"{response.text}"
+        )
+
+    data = response.json()
+
+    if not data.get("urls"):
+        raise RuntimeError(
+            f"Mercado Libre no devolvió un enlace: {data}"
+        )
+
+    return data["urls"][0]["short_url"]
 
 @app.route("/")
 def home():
@@ -563,3 +606,41 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=10000
     )
+
+@app.route("/probar-afiliado")
+def probar_afiliado():
+
+    producto = "https://www.mercadolibre.com.mx/mesa-plegable-de-plastico-styrka-mptp01-tipo-portafolio-180m-color-blanco/p/MLM25673801"
+
+    try:
+        enlace = create_affiliate_link(producto)
+
+        return f"""
+        <h1>✅ Afiliado funcionando</h1>
+
+        <p><strong>Producto:</strong></p>
+        <p>{producto}</p>
+
+        <p><strong>Enlace afiliado:</strong></p>
+        <p>
+            <a href="{enlace}" target="_blank">
+                {enlace}
+            </a>
+        </p>
+
+        <p>
+            <a href="/">← Volver al panel</a>
+        </p>
+        """
+
+    except Exception as error:
+
+        return f"""
+        <h1>❌ Error</h1>
+
+        <p>{error}</p>
+
+        <p>
+            <a href="/">← Volver al panel</a>
+        </p>
+        """, 500
