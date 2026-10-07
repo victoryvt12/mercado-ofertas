@@ -607,10 +607,44 @@ if __name__ == "__main__":
         port=10000
     )
 
-@app.route("/probar-afiliado")
+@app.route("/probar-afiliado", methods=["GET", "POST"])
 def probar_afiliado():
 
-    producto = "https://www.mercadolibre.com.mx/mesa-plegable-de-plastico-styrka-mptp01-tipo-portafolio-180m-color-blanco/p/MLM25673801"
+    if request.method == "GET":
+        return """
+        <h1>🔗 Generador de enlace afiliado</h1>
+
+        <form method="POST">
+
+            <p>
+                <label>URL del producto de Mercado Libre:</label>
+            </p>
+
+            <input
+                type="text"
+                name="producto"
+                placeholder="Pega aquí la URL de Mercado Libre"
+                style="width: 500px;"
+                required
+            >
+
+            <br><br>
+
+            <button type="submit">
+                Generar enlace afiliado
+            </button>
+
+        </form>
+
+        <p>
+            <a href="/">← Volver al panel</a>
+        </p>
+        """
+
+    producto = request.form.get("producto", "").strip()
+
+    if not producto:
+        return "❌ No se recibió ninguna URL.", 400
 
     try:
         enlace = create_affiliate_link(producto)
@@ -619,9 +653,15 @@ def probar_afiliado():
         <h1>✅ Afiliado funcionando</h1>
 
         <p><strong>Producto:</strong></p>
-        <p>{producto}</p>
+
+        <p>
+            <a href="{producto}" target="_blank">
+                {producto}
+            </a>
+        </p>
 
         <p><strong>Enlace afiliado:</strong></p>
+
         <p>
             <a href="{enlace}" target="_blank">
                 {enlace}
@@ -629,7 +669,15 @@ def probar_afiliado():
         </p>
 
         <p>
-            <a href="/">← Volver al panel</a>
+            <a href="/probar-afiliado">
+                ← Generar otro enlace
+            </a>
+        </p>
+
+        <p>
+            <a href="/">
+                ← Volver al panel
+            </a>
         </p>
         """
 
@@ -641,6 +689,14 @@ def probar_afiliado():
         <p>{error}</p>
 
         <p>
-            <a href="/">← Volver al panel</a>
+            <a href="/probar-afiliado">
+                ← Intentar nuevamente
+            </a>
+        </p>
+
+        <p>
+            <a href="/">
+                ← Volver al panel
+            </a>
         </p>
         """, 500
