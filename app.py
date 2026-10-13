@@ -799,6 +799,74 @@ def probar_busqueda_catalogo():
     </html>
     """
 
+# --------------------------------------------------
+# PRUEBA DEL DETALLE DE UN PRODUCTO DE CATALOGO
+# --------------------------------------------------
+
+@app.route("/probar-detalle-catalogo")
+def probar_detalle_catalogo():
+    access_token = session.get("access_token")
+
+    if not access_token:
+        return """
+        <h1>Falta conectar Mercado Libre</h1>
+        <p><a href="/login/mercadolibre">Conectar cuenta</a></p>
+        """, 401
+
+    producto_id = "MLM48308625"
+
+    try:
+        response = requests.get(
+            f"https://api.mercadolibre.com/products/{producto_id}",
+            headers={
+                "Authorization": f"Bearer {access_token}"
+            },
+            timeout=30,
+        )
+    except requests.RequestException as error:
+        return (
+            "<h1>Error de conexión</h1>"
+            f"<pre>{escape(str(error))}</pre>"
+        ), 500
+
+    if response.status_code != 200:
+        return f"""
+        <h1>Error al consultar el producto</h1>
+        <p>Código HTTP: {response.status_code}</p>
+        <pre>{escape(response.text[:4000])}</pre>
+        """, response.status_code
+
+    data = response.json()
+    ganador = data.get("buy_box_winner")
+
+    if not ganador:
+        return f"""
+        <h1>Producto consultado correctamente</h1>
+        <p>Nombre: {escape(str(data.get("name", "")))}</p>
+        <p>ID: {escape(producto_id)}</p>
+        <p>La respuesta no incluye una publicación ganadora.</p>
+        <p><a href="/">Volver al panel</a></p>
+        """
+
+    item_id = ganador.get("item_id", "")
+    precio = ganador.get("price", "No disponible")
+    moneda = ganador.get("currency_id", "MXN")
+
+    return f"""
+    <h1>Publicación ganadora encontrada</h1>
+    <p>Producto: {escape(str(data.get("name", "")))}</p>
+    <p>ID de catálogo: {escape(producto_id)}</p>
+    <p>ID de publicación: {escape(str(item_id))}</p>
+    <p>Precio: {escape(str(precio))} {escape(str(moneda))}</p>
+    <p>
+        <a href="https://articulo.mercadolibre.com.mx/{escape(str(item_id))}"
+           target="_blank" rel="noopener">
+           Intentar abrir la publicación
+        </a>
+    </p>
+    <p><a href="/">Volver al panel</a></p>
+    """
+
 if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
