@@ -4,6 +4,9 @@ import hashlib
 import base64
 import requests
 
+import re
+from html import escape
+
 from flask import Flask, redirect, request, session
 
 app = Flask(__name__)
@@ -637,6 +640,86 @@ def probar_ofertas():
 
         <p><a href="/">← Volver al panel</a></p>
         """, 500
+
+
+@app.route("/inspeccionar-ofertas")
+def inspeccionar_ofertas():
+
+    url = "https://www.mercadolibre.com.mx/ofertas"
+
+    try:
+        response = requests.get(
+            url,
+            headers={"User-Agent": "Mozilla/5.0"},
+            timeout=30
+        )
+        response.raise_for_status()
+
+        contenido = response.text
+
+        enlaces = re.findall(
+            r'href=["\']([^"\']+)["\']',
+            contenido,
+            re.IGNORECASE
+        )
+
+        productos = []
+
+        for enlace in enlaces:
+            if (
+                "mercadolibre.com.mx/" in enlace
+                and (
+                    "/p/" in enlace
+                    or re.search(r"/[^/?#]+/p/", enlace)
+                )
+            ):
+                if enlace not in productos:
+                    productos.append(enlace)
+
+        indicadores = [
+            "andes-money-amount",
+            "poly-card",
+            "original_price",
+            "discount",
+            "price"
+        ]
+
+        resultados = "".join(
+            f"<li>{escape(indicador)}: "
+            f"{contenido.lower().count(indicador.lower())}</li>"
+            for indicador in indicadores
+        )
+
+        muestra = "".join(
+            f'<li><a href="{escape(enlace, quote=True)}">'
+            f'{escape(enlace)}</a></li>'
+            for enlace in productos[:15]
+        )
+
+        if not muestra:
+            muestra = "<li>No se encontraron enlaces de productos.</li>"
+
+        return f"""
+        <h1>🔎 Inspección de ofertas</h1>
+
+        <p>Respuesta HTTP: {response.status_code}</p>
+
+        <h2>Indicadores encontrados</h2>
+        <ul>{resultados}</ul>
+
+        <h2>Enlaces de productos: {len(productos)}</h2>
+        <ol>{muestra}</ol>
+
+        <p><a href="/">← Volver al panel</a></p>
+        """
+
+    except Exception as error:
+        return f"""
+        <h1>❌ Error</h1>
+        <p>{escape(str(error))}</p>
+        <p><a href="/">← Volver al panel</a></p>
+        """, 500
+
 
 if __name__ == "__main__":
     app.run(
