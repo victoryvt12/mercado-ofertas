@@ -600,6 +600,43 @@ def mercadolibre_callback():
     </html>
     """
 
+@app.route("/probar-ofertas")
+def probar_ofertas():
+
+    url = "https://www.mercadolibre.com.mx/ofertas"
+
+    try:
+        response = requests.get(
+            url,
+            headers={
+                "User-Agent": "Mozilla/5.0"
+            },
+            timeout=30
+        )
+
+        response.raise_for_status()
+
+        return f"""
+        <h1>✅ Mercado Libre respondió</h1>
+
+        <p><strong>Código HTTP:</strong> {response.status_code}</p>
+
+        <p><strong>Tamaño de la página:</strong>
+        {len(response.text)} caracteres</p>
+
+        <p>Mercado Ofertas pudo acceder a la página.</p>
+
+        <p><a href="/">← Volver al panel</a></p>
+        """
+
+    except Exception as error:
+        return f"""
+        <h1>❌ Error al consultar las ofertas</h1>
+
+        <p>{error}</p>
+
+        <p><a href="/">← Volver al panel</a></p>
+        """, 500
 
 if __name__ == "__main__":
     app.run(
