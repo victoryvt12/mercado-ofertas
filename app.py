@@ -736,6 +736,103 @@ fragmento = escape(contenido[:1200])
         """, 500
 
 
+@app.route("/inspeccionar-ofertas")
+def inspeccionar_ofertas():
+
+    url = "https://www.mercadolibre.com.mx/ofertas"
+
+    try:
+        response = requests.get(
+            url,
+            headers={"User-Agent": "Mozilla/5.0"},
+            timeout=30
+        )
+        response.raise_for_status()
+
+        contenido = response.text
+
+        titulo = re.search(
+            r"<title[^>]*>(.*?)</title>",
+            contenido,
+            re.IGNORECASE | re.DOTALL
+        )
+
+        titulo_pagina = (
+            titulo.group(1).strip()
+            if titulo else "Sin título"
+        )
+
+        fragmento = escape(contenido[:1200])
+
+        enlaces = re.findall(
+            r'href=["\']([^"\']+)["\']',
+            contenido,
+            re.IGNORECASE
+        )
+
+        productos = []
+
+        for enlace in enlaces:
+            if (
+                "mercadolibre.com.mx/" in enlace
+                and (
+                    "/p/" in enlace
+                    or re.search(r"/[^/?#]+/p/", enlace)
+                )
+            ):
+                if enlace not in productos:
+                    productos.append(enlace)
+
+        indicadores = [
+            "andes-money-amount",
+            "poly-card",
+            "original_price",
+            "discount",
+            "price"
+        ]
+
+        resultados = "".join(
+            f"<li>{escape(indicador)}: "
+            f"{contenido.lower().count(indicador.lower())}</li>"
+            for indicador in indicadores
+        )
+
+        muestra = "".join(
+            f'<li><a href="{escape(enlace, quote=True)}">'
+            f'{escape(enlace)}</a></li>'
+            for enlace in productos[:15]
+        )
+
+        if not muestra:
+            muestra = "<li>No se encontraron enlaces de productos.</li>"
+
+        return f"""
+        <h1>Inspección de ofertas</h1>
+
+        <h2>Título recibido</h2>
+        <p>{escape(titulo_pagina)}</p>
+
+        <h2>Inicio del HTML recibido</h2>
+        <pre style="white-space:pre-wrap;overflow-wrap:anywhere;">{fragmento}</pre>
+
+        <p>Respuesta HTTP: {response.status_code}</p>
+
+        <h2>Indicadores encontrados</h2>
+        <ul>{resultados}</ul>
+
+        <h2>Enlaces de productos: {len(productos)}</h2>
+        <ol>{muestra}</ol>
+
+        <p><a href="/">Volver al panel</a></p>
+        """
+
+    except Exception as error:
+        return f"""
+        <h1>Error</h1>
+        <p>{escape(str(error))}</p>
+        <p><a href="/">Volver al panel</a></p>
+        """, 500
+
 if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
