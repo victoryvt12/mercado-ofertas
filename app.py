@@ -704,6 +704,101 @@ def probar_api_busqueda():
     </html>
     """
 
+
+# --------------------------------------------------
+# PRUEBA DE BÚSQUEDA DE PRODUCTOS DE CATÁLOGO
+# --------------------------------------------------
+
+@app.route("/probar-busqueda-catalogo")
+def probar_busqueda_catalogo():
+    access_token = session.get("access_token")
+
+    if not access_token:
+        return """
+        <h1>Falta conectar Mercado Libre</h1>
+        <p><a href="/login/mercadolibre">Conectar cuenta</a></p>
+        """, 401
+
+    try:
+        response = requests.get(
+            "https://api.mercadolibre.com/products/search",
+            params={
+                "site_id": "MLM",
+                "q": "audifonos",
+                "status": "active",
+                "limit": 5,
+            },
+            headers={
+                "Authorization": f"Bearer {access_token}",
+            },
+            timeout=30,
+        )
+
+    except requests.RequestException as error:
+        return (
+            "<h1>Error de conexión</h1>"
+            f"<pre>{escape(str(error))}</pre>"
+        ), 500
+
+    if response.status_code != 200:
+        return f"""
+        <h1>Error en búsqueda de catálogo</h1>
+        <p>Código HTTP: {response.status_code}</p>
+        <pre>{escape(response.text[:6000])}</pre>
+        <p><a href="/">Volver al panel</a></p>
+        """, response.status_code
+
+    try:
+        data = response.json()
+    except ValueError:
+        return "<h1>La respuesta no es JSON válido</h1>", 500
+
+    productos = data.get("results", [])
+    filas = ""
+
+    for producto in productos:
+        producto_id = escape(str(producto.get("id", "")))
+        nombre = escape(str(producto.get("name", "Sin nombre")))
+        estado = escape(str(producto.get("status", "")))
+        dominio = escape(str(producto.get("domain_id", "")))
+
+        filas += f"""
+        <tr>
+            <td>{producto_id}</td>
+            <td>{nombre}</td>
+            <td>{estado}</td>
+            <td>{dominio}</td>
+        </tr>
+        """
+
+    if not filas:
+        filas = "<tr><td colspan='4'>No se encontraron productos.</td></tr>"
+
+    return f"""
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <title>Prueba de catálogo</title>
+    </head>
+    <body style="font-family:Arial;max-width:1000px;margin:30px auto;padding:20px">
+        <h1>Prueba de búsqueda de catálogo</h1>
+        <p>Respuesta HTTP: {response.status_code}</p>
+        <p>Productos recibidos: {len(productos)}</p>
+        <table border="1" cellpadding="8" cellspacing="0">
+            <tr>
+                <th>ID de catálogo</th>
+                <th>Nombre</th>
+                <th>Estado</th>
+                <th>Dominio</th>
+            </tr>
+            {filas}
+        </table>
+        <p><a href="/">Volver al panel</a></p>
+    </body>
+    </html>
+    """
+
 if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
