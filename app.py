@@ -614,6 +614,96 @@ def probar_afiliado():
 # Render utiliza Gunicorn para ejecutar la aplicación.
 # --------------------------------------------------
 
+
+# --------------------------------------------------
+# PRUEBA DE BÚSQUEDA OFICIAL DE MERCADO LIBRE
+# --------------------------------------------------
+
+@app.route("/probar-api-busqueda")
+def probar_api_busqueda():
+    access_token = session.get("access_token")
+
+    if not access_token:
+        return """
+        <h1>Falta conectar Mercado Libre</h1>
+        <p><a href="/login/mercadolibre">Conectar cuenta</a></p>
+        """, 401
+
+    try:
+        response = requests.get(
+            "https://api.mercadolibre.com/sites/MLM/search",
+            params={
+                "q": "audifonos",
+                "limit": 5,
+            },
+            headers={
+                "Authorization": f"Bearer {access_token}",
+            },
+            timeout=30,
+        )
+
+    except requests.RequestException as error:
+        return (
+            f"<h1>Error de conexión</h1>"
+            f"<pre>{escape(str(error))}</pre>"
+        ), 500
+
+    if response.status_code != 200:
+        return f"""
+        <h1>La API rechazó la consulta</h1>
+        <p>Código HTTP: {response.status_code}</p>
+        <pre>{escape(response.text[:3000])}</pre>
+        <p><a href="/">Volver al panel</a></p>
+        """, response.status_code
+
+    try:
+        data = response.json()
+    except ValueError:
+        return "<h1>La respuesta no es JSON válido</h1>", 500
+
+    productos = data.get("results", [])
+    filas = ""
+
+    for producto in productos:
+        titulo = escape(str(producto.get("title", "Sin título")))
+        precio = escape(str(producto.get("price", "Sin precio")))
+        enlace = escape(str(producto.get("permalink", "")), quote=True)
+        imagen = escape(str(producto.get("thumbnail", "")), quote=True)
+
+        filas += f"""
+        <tr>
+            <td>{titulo}</td>
+            <td>${precio}</td>
+            <td><a href="{enlace}" target="_blank">Ver producto</a></td>
+            <td>{imagen}</td>
+        </tr>
+        """
+
+    if not filas:
+        filas = "<tr><td colspan='4'>No se recibieron productos.</td></tr>"
+
+    return f"""
+    <!DOCTYPE html>
+    <html lang="es">
+    <head><meta charset="UTF-8"><title>Prueba de búsqueda</title></head>
+    <body style="font-family:Arial;max-width:1000px;margin:30px auto;padding:20px">
+        <h1>Prueba de búsqueda oficial</h1>
+        <p>Respuesta HTTP: {response.status_code}</p>
+        <p>Productos recibidos: {len(productos)}</p>
+        <table border="1" cellpadding="8" cellspacing="0">
+            <tr>
+                <th>Título</th>
+                <th>Precio</th>
+                <th>Enlace</th>
+                <th>URL de imagen</th>
+            </tr>
+            {filas}
+        </table>
+        <p><a href="/">Volver al panel</a></p>
+    </body>
+    </html>
+    """
+
 if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
