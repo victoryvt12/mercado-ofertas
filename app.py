@@ -840,21 +840,21 @@ def probar_detalle_catalogo():
     ganador = data.get("buy_box_winner")
 
     if not ganador:
-    return f"""
-    <h1>Diagnóstico del producto</h1>
-    <p><b>Nombre:</b> {escape(str(data.get("name", "")))}</p>
-    <p><b>Estado:</b> {escape(str(data.get("status", "")))}</p>
-    <p><b>Familia:</b> {escape(str(data.get("family_name", "")))}</p>
-    <p><b>Enlace de catálogo:</b>
-       <a href="{escape(str(data.get("permalink", "")))}" target="_blank">
-       Abrir producto</a>
-    </p>
-    <p><b>Publicación ganadora:</b>
-       {escape(str(data.get("buy_box_winner", "Campo ausente")))}</p>
-    <p><b>Campos recibidos:</b></p>
-    <pre>{escape(", ".join(data.keys()))}</pre>
-    <p><a href="/">Volver al panel</a></p>
-    """
+        return f"""
+        <h1>Diagnóstico del producto</h1>
+        <p><b>Nombre:</b> {escape(str(data.get("name", "")))}</p>
+        <p><b>Estado:</b> {escape(str(data.get("status", "")))}</p>
+        <p><b>Familia:</b> {escape(str(data.get("family_name", "")))}</p>
+        <p><b>Enlace de catálogo:</b>
+           <a href="{escape(str(data.get("permalink", "")))}" target="_blank">
+           Abrir producto</a>
+        </p>
+        <p><b>Publicación ganadora:</b>
+           {escape(str(data.get("buy_box_winner", "Campo ausente")))}</p>
+        <p><b>Campos recibidos:</b></p>
+        <pre>{escape(", ".join(data.keys()))}</pre>
+        <p><a href="/">Volver al panel</a></p>
+        """
 
     item_id = ganador.get("item_id", "")
     precio = ganador.get("price", "No disponible")
