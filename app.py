@@ -657,6 +657,16 @@ def inspeccionar_ofertas():
 
         contenido = response.text
 
+        titulo = re.search(
+    r"<title[^>]*>(.*?)</title>",
+    contenido,
+    re.IGNORECASE | re.DOTALL
+)
+
+titulo_pagina = titulo.group(1).strip() if titulo else "Sin título"
+
+fragmento = escape(contenido[:1200])
+
         enlaces = re.findall(
             r'href=["\']([^"\']+)["\']',
             contenido,
@@ -701,6 +711,11 @@ def inspeccionar_ofertas():
 
         return f"""
         <h1>🔎 Inspección de ofertas</h1>
+        <h2>Título recibido</h2>
+<p>{escape(titulo_pagina)}</p>
+
+<h2>Inicio del HTML recibido</h2>
+<pre style="white-space:pre-wrap;overflow-wrap:anywhere;">{fragmento}</pre>
 
         <p>Respuesta HTTP: {response.status_code}</p>
 
