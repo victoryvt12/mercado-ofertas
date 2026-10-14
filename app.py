@@ -1048,6 +1048,134 @@ def probar_mas_vendidos_categoria():
     </html>
     """
 
+
+# --------------------------------------------------
+# DIAGNOSTICO DE PUBLICACIONES Y PRECIOS
+# --------------------------------------------------
+
+@app.route("/diagnostico-mas-vendidos")
+def diagnostico_mas_vendidos():
+    access_token = session.get("access_token")
+
+    if not access_token:
+        return (
+            '<h2>Mercado Libre no está conectado</h2>'
+            '<p><a href="/login/mercadolibre">Conectar cuenta</a></p>'
+        ), 401
+
+    headers = {"Authorization": f"Bearer {access_token}"}
+    categoria_id = "MLM5072"
+
+    try:
+        respuesta = requests.get(
+            f"https://api.mercadolibre.com/highlights/MLM/category/{categoria_id}",
+            headers=headers,
+            timeout=30,
+        )
+
+        if respuesta.status_code != 200:
+            return (
+                f"<h2>Error al obtener la lista: HTTP {respuesta.status_code}</h2>"
+                f"<pre>{escape(respuesta.text[:3000])}</pre>"
+            ), respuesta.status_code
+
+        productos = respuesta.json().get("content", [])[:5]
+        filas = ""
+
+        for producto in productos:
+            producto_id = str(producto.get("id", ""))
+            tipo = producto.get("type", "")
+            nombre = "No disponible"
+            precio = "No disponible"
+            enlace = ""
+            estado = ""
+
+            try:
+                if tipo == "PRODUCT":
+                    detalle = requests.get(
+                        f"https://api.mercadolibre.com/products/{producto_id}",
+                        headers=headers,
+                        timeout=20,
+                    )
+
+                    if detalle.status_code == 200:
+                        datos = detalle.json()
+                        nombre = datos.get("name", nombre)
+                        ganador = datos.get("buy_box_winner")
+
+                        if ganador:
+                            precio = ganador.get("price", precio)
+                            enlace = ganador.get("permalink", "")
+                            estado = "Publicación ganadora encontrada"
+                        else:
+                            estado = "Sin publicación ganadora en el catálogo"
+                    else:
+                        estado = f"Error de catálogo: HTTP {detalle.status_code}"
+
+                elif tipo == "ITEM":
+                    detalle = requests.get(
+                        f"https://api.mercadolibre.com/items/{producto_id}",
+                        headers=headers,
+                        timeout=20,
+                    )
+
+                    if detalle.status_code == 200:
+                        datos = detalle.json()
+                        nombre = datos.get("title", nombre)
+                        precio = datos.get("price", precio)
+                        enlace = datos.get("permalink", "")
+                        estado = datos.get("status", "Publicación consultada")
+                    else:
+                        estado = f"Error de publicación: HTTP {detalle.status_code}"
+
+                else:
+                    estado = "Tipo de producto pendiente de consultar"
+
+            except requests.RequestException as error:
+                estado = f"Error de conexión: {error}"
+
+            filas += f"""
+            <tr>
+                <td>{escape(tipo)}</td>
+                <td>{escape(producto_id)}</td>
+                <td>{escape(str(nombre))}</td>
+                <td>{escape(str(precio))}</td>
+                <td>{escape(str(estado))}</td>
+                <td>
+                    <a href="{escape(str(enlace), quote=True)}"
+                       target="_blank" rel="noopener">
+                       { "Abrir" if enlace else "Sin enlace" }
+                    </a>
+                </td>
+            </tr>
+            """
+
+        return f"""
+        <!DOCTYPE html>
+        <html lang="es">
+        <head><meta charset="UTF-8"><title>Diagnóstico de productos</title></head>
+        <body style="font-family:Arial;max-width:1200px;margin:30px auto;padding:20px">
+            <h1>Diagnóstico de más vendidos</h1>
+            <p>Resultados revisados: {len(productos)}</p>
+            <table border="1" cellpadding="8" cellspacing="0">
+                <tr>
+                    <th>Tipo</th>
+                    <th>ID</th>
+                    <th>Producto</th>
+                    <th>Precio</th>
+                    <th>Resultado de consulta</th>
+                    <th>Enlace</th>
+                </tr>
+                {filas}
+            </table>
+            <p><a href="/">Volver al panel</a></p>
+        </body>
+        </html>
+        """
+
+    except (requests.RequestException, ValueError) as error:
+        return f"<h2>Error</h2><pre>{escape(str(error))}</pre>", 500
+
 if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
