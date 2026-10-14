@@ -1333,6 +1333,92 @@ def probar_item_destacado():
     <p><a href="/">Volver al panel</a></p>
     """
 
+# --------------------------------------------------
+# DIAGNOSTICO: PUBLICACIONES GANADORAS DEL CATALOGO
+# --------------------------------------------------
+
+@app.route("/diagnostico-publicaciones-catalogo")
+def diagnostico_publicaciones_catalogo():
+    access_token = session.get("access_token")
+
+    if not access_token:
+        return (
+            '<h2>Mercado Libre no está conectado</h2>'
+            '<p><a href="/login/mercadolibre">Conectar cuenta</a></p>'
+        ), 401
+
+    headers = {
+        "Authorization": f"Bearer {access_token}"
+    }
+
+    try:
+        respuesta = requests.get(
+            "https://api.mercadolibre.com/products/search",
+            params={
+                "site_id": "MLM",
+                "q": "audifonos",
+                "status": "active",
+                "limit": 5,
+            },
+            headers=headers,
+            timeout=30,
+        )
+
+        if respuesta.status_code != 200:
+            return (
+                "<h2>Error al buscar productos</h2>"
+                f"<p>HTTP: {respuesta.status_code}</p>"
+                f"<pre>{escape(respuesta.text[:2000])}</pre>"
+            ), respuesta.status_code
+
+        productos = respuesta.json().get("results", [])
+        resultados = []
+
+        for producto in productos:
+            product_id = producto.get("id")
+
+            if not product_id:
+                continue
+
+            detalle = requests.get(
+                f"https://api.mercadolibre.com/products/{product_id}",
+                headers=headers,
+                timeout=30,
+            )
+
+            if detalle.status_code != 200:
+                resultados.append(
+                    f"<h3>{escape(str(product_id))}</h3>"
+                    f"<p>Error al consultar detalle: "
+                    f"HTTP {detalle.status_code}</p>"
+                )
+                continue
+
+            datos = detalle.json()
+            ganador = datos.get("buy_box_winner")
+
+            resultados.append(
+                f"<h3>{escape(str(datos.get('name', product_id)))}</h3>"
+                f"<p><b>Producto:</b> {escape(str(product_id))}</p>"
+                f"<p><b>Publicación ganadora:</b></p>"
+                f"<pre>{escape(str(ganador))}</pre>"
+            )
+
+    except requests.RequestException as error:
+        return (
+            "<h2>Error de conexión</h2>"
+            f"<pre>{escape(str(error))}</pre>"
+        ), 500
+
+    contenido = "".join(resultados) or "<p>No se encontraron productos.</p>"
+
+    return f"""
+    <h1>Diagnóstico de publicaciones del catálogo</h1>
+    <p>Productos analizados: {len(productos)}</p>
+    {contenido}
+    <p><a href="/">Volver al panel</a></p>
+    """
+
 if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
