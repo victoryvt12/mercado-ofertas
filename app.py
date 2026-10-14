@@ -920,6 +920,45 @@ def probar_pagina_ofertas():
     </html>
     """, response.status_code
 
+
+# --------------------------------------------------
+# PRUEBA DE PUBLICACIONES ASOCIADAS AL CATALOGO
+# --------------------------------------------------
+
+@app.route("/probar-publicaciones-catalogo")
+def probar_publicaciones_catalogo():
+    access_token = session.get("access_token")
+
+    if not access_token:
+        return """
+        <h1>Falta conectar Mercado Libre</h1>
+        <p><a href="/login/mercadolibre">Conectar cuenta</a></p>
+        """, 401
+
+    producto_id = "MLM48308625"
+    url = f"https://api.mercadolibre.com/products/{producto_id}/items"
+
+    try:
+        response = requests.get(
+            url,
+            headers={"Authorization": f"Bearer {access_token}"},
+            timeout=30,
+        )
+    except requests.RequestException as error:
+        return (
+            "<h1>Error de conexión</h1>"
+            f"<pre>{escape(str(error))}</pre>"
+        ), 500
+
+    return f"""
+    <h1>Prueba de publicaciones asociadas</h1>
+    <p><b>Código HTTP:</b> {response.status_code}</p>
+    <p><b>Producto:</b> {escape(producto_id)}</p>
+    <h2>Respuesta de la API</h2>
+    <pre style="white-space:pre-wrap;overflow-wrap:anywhere">{escape(response.text[:6000])}</pre>
+    <p><a href="/">Volver al panel</a></p>
+    """, response.status_code
+
 if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
