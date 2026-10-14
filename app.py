@@ -1176,6 +1176,100 @@ def diagnostico_mas_vendidos():
     except (requests.RequestException, ValueError) as error:
         return f"<h2>Error</h2><pre>{escape(str(error))}</pre>", 500
 
+# --------------------------------------------------
+# BUSCAR PUBLICACIONES POR NOMBRE DE PRODUCTO
+# --------------------------------------------------
+
+@app.route("/buscar-publicaciones-nombre")
+def buscar_publicaciones_nombre():
+    access_token = session.get("access_token")
+
+    if not access_token:
+        return (
+            '<h2>Mercado Libre no está conectado</h2>'
+            '<p><a href="/login/mercadolibre">Conectar cuenta</a></p>'
+        ), 401
+
+    consulta = "Xiaomi Redmi Buds 6 Play Negro"
+
+    try:
+        response = requests.get(
+            "https://api.mercadolibre.com/sites/MLM/search",
+            params={
+                "q": consulta,
+                "limit": 5,
+            },
+            headers={
+                "Authorization": f"Bearer {access_token}"
+            },
+            timeout=30,
+        )
+    except requests.RequestException as error:
+        return (
+            "<h1>Error de conexión</h1>"
+            f"<pre>{escape(str(error))}</pre>"
+        ), 500
+
+    if response.status_code != 200:
+        return f"""
+        <h1>No se pudo completar la búsqueda</h1>
+        <p>Consulta: {escape(consulta)}</p>
+        <p>Código HTTP: {response.status_code}</p>
+        <pre>{escape(response.text[:3000])}</pre>
+        <p><a href="/">Volver al panel</a></p>
+        """, response.status_code
+
+    productos = response.json().get("results", [])
+    filas = ""
+
+    for producto in productos:
+        titulo = escape(str(producto.get("title", "")))
+        producto_id = escape(str(producto.get("id", "")))
+        precio = escape(str(producto.get("price", "No disponible")))
+        enlace = escape(str(producto.get("permalink", "")), quote=True)
+        descuento = escape(str(producto.get("original_price", "")))
+
+        filas += f"""
+        <tr>
+            <td>{producto_id}</td>
+            <td>{titulo}</td>
+            <td>${precio}</td>
+            <td>{descuento if descuento else "No informado"}</td>
+            <td>
+                <a href="{enlace}" target="_blank" rel="noopener">
+                    Ver publicación
+                </a>
+            </td>
+        </tr>
+        """
+
+    if not filas:
+        filas = "<tr><td colspan='5'>No hubo resultados.</td></tr>"
+
+    return f"""
+    <!DOCTYPE html>
+    <html lang="es">
+    <head><meta charset="UTF-8"><title>Búsqueda de publicaciones</title></head>
+    <body style="font-family:Arial;max-width:1100px;margin:30px auto;padding:20px">
+        <h1>Búsqueda de publicaciones por nombre</h1>
+        <p>Consulta: {escape(consulta)}</p>
+        <p>Respuesta HTTP: {response.status_code}</p>
+        <p>Publicaciones recibidas: {len(productos)}</p>
+        <table border="1" cellpadding="8" cellspacing="0">
+            <tr>
+                <th>ID</th>
+                <th>Título</th>
+                <th>Precio actual</th>
+                <th>Precio anterior informado por la API</th>
+                <th>Enlace</th>
+            </tr>
+            {filas}
+        </table>
+        <p><a href="/">Volver al panel</a></p>
+    </body>
+    </html>
+    """
+
 if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
