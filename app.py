@@ -1270,6 +1270,69 @@ def buscar_publicaciones_nombre():
     </html>
     """
 
+
+# --------------------------------------------------
+# PRUEBA DE DETALLE DE UNA PUBLICACION DESTACADA
+# --------------------------------------------------
+
+@app.route("/probar-item-destacado")
+def probar_item_destacado():
+    access_token = session.get("access_token")
+
+    if not access_token:
+        return (
+            '<h2>Mercado Libre no está conectado</h2>'
+            '<p><a href="/login/mercadolibre">Conectar cuenta</a></p>'
+        ), 401
+
+    item_id = "MLM4525822678"
+
+    try:
+        response = requests.get(
+            f"https://api.mercadolibre.com/items/{item_id}",
+            headers={
+                "Authorization": f"Bearer {access_token}"
+            },
+            timeout=30,
+        )
+    except requests.RequestException as error:
+        return (
+            "<h1>Error de conexión</h1>"
+            f"<pre>{escape(str(error))}</pre>"
+        ), 500
+
+    if response.status_code != 200:
+        return f"""
+        <h1>No se pudo consultar la publicación</h1>
+        <p>HTTP: {response.status_code}</p>
+        <pre>{escape(response.text[:3000])}</pre>
+        <p><a href="/">Volver al panel</a></p>
+        """, response.status_code
+
+    data = response.json()
+
+    titulo = escape(str(data.get("title", "Sin título")))
+    precio = escape(str(data.get("price", "No disponible")))
+    precio_anterior = escape(
+        str(data.get("original_price", "No informado"))
+    )
+    estado = escape(str(data.get("status", "No informado")))
+    enlace = escape(
+        str(data.get("permalink", "")), quote=True
+    )
+
+    return f"""
+    <h1>Publicación consultada correctamente</h1>
+    <p><b>ID:</b> {escape(item_id)}</p>
+    <p><b>Título:</b> {titulo}</p>
+    <p><b>Precio actual:</b> ${precio} MXN</p>
+    <p><b>Precio anterior:</b> ${precio_anterior}</p>
+    <p><b>Estado:</b> {estado}</p>
+    <p><a href="{enlace}" target="_blank" rel="noopener">
+       Abrir publicación en Mercado Libre</a></p>
+    <p><a href="/">Volver al panel</a></p>
+    """
+
 if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
