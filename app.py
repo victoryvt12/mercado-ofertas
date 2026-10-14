@@ -959,6 +959,95 @@ def probar_publicaciones_catalogo():
     <p><a href="/">Volver al panel</a></p>
     """, response.status_code
 
+
+# --------------------------------------------------
+# PRUEBA DE MAS VENDIDOS POR CATEGORIA
+# --------------------------------------------------
+
+@app.route("/probar-mas-vendidos-categoria")
+def probar_mas_vendidos_categoria():
+    access_token = session.get("access_token")
+
+    if not access_token:
+        return """
+        <h1>Falta conectar Mercado Libre</h1>
+        <p><a href="/login/mercadolibre">Conectar cuenta</a></p>
+        """, 401
+
+    categoria_id = "MLM5072"
+    url = (
+        "https://api.mercadolibre.com/highlights/MLM/category/"
+        + categoria_id
+    )
+
+    try:
+        response = requests.get(
+            url,
+            headers={
+                "Authorization": f"Bearer {access_token}"
+            },
+            timeout=30,
+        )
+    except requests.RequestException as error:
+        return (
+            "<h1>Error de conexión</h1>"
+            f"<pre>{escape(str(error))}</pre>"
+        ), 500
+
+    if response.status_code != 200:
+        return f"""
+        <h1>Error al consultar más vendidos</h1>
+        <p>Código HTTP: {response.status_code}</p>
+        <pre>{escape(response.text[:4000])}</pre>
+        <p><a href="/">Volver al panel</a></p>
+        """, response.status_code
+
+    data = response.json()
+    productos = data.get("content", [])
+    filas = ""
+
+    for producto in productos:
+        producto_id = escape(str(producto.get("id", "")))
+        tipo = escape(str(producto.get("type", "")))
+        posicion = escape(str(producto.get("position", "")))
+
+        filas += f"""
+        <tr>
+            <td>{posicion}</td>
+            <td>{tipo}</td>
+            <td>{producto_id}</td>
+        </tr>
+        """
+
+    if not filas:
+        filas = (
+            "<tr><td colspan='3'>No se encontraron resultados.</td></tr>"
+        )
+
+    return f"""
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <title>Más vendidos por categoría</title>
+    </head>
+    <body style="font-family:Arial;max-width:900px;margin:30px auto;padding:20px">
+        <h1>Más vendidos: Audífonos</h1>
+        <p>Código HTTP: {response.status_code}</p>
+        <p>Resultados recibidos: {len(productos)}</p>
+        <table border="1" cellpadding="8" cellspacing="0">
+            <tr>
+                <th>Posición</th>
+                <th>Tipo</th>
+                <th>ID</th>
+            </tr>
+            {filas}
+        </table>
+        <p><a href="/">Volver al panel</a></p>
+    </body>
+    </html>
+    """
+
 if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
