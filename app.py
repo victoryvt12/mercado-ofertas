@@ -875,6 +875,51 @@ def probar_detalle_catalogo():
     <p><a href="/">Volver al panel</a></p>
     """
 
+# --------------------------------------------------
+# PRUEBA DE ACCESO A LA PAGINA OFICIAL DE OFERTAS
+# --------------------------------------------------
+
+@app.route("/probar-pagina-ofertas")
+def probar_pagina_ofertas():
+    url = "https://www.mercadolibre.com.mx/ofertas"
+
+    try:
+        response = requests.get(
+            url,
+            headers={
+                "User-Agent": (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/131.0.0.0 Safari/537.36"
+                )
+            },
+            timeout=30,
+        )
+    except requests.RequestException as error:
+        return (
+            "<h1>Error de conexión</h1>"
+            f"<pre>{escape(str(error))}</pre>"
+        ), 500
+
+    return f"""
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <title>Prueba de página de ofertas</title>
+    </head>
+    <body style="font-family:Arial;max-width:900px;margin:30px auto">
+        <h1>Prueba de página de ofertas</h1>
+        <p><b>Código HTTP:</b> {response.status_code}</p>
+        <p><b>URL final:</b> {escape(response.url)}</p>
+        <p><b>Tamaño de respuesta:</b> {len(response.text)} caracteres</p>
+        <h2>Fragmento de la página recibida</h2>
+        <pre style="white-space:pre-wrap;overflow-wrap:anywhere">{escape(response.text[:5000])}</pre>
+        <p><a href="/">Volver al panel</a></p>
+    </body>
+    </html>
+    """, response.status_code
+
 if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
